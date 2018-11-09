@@ -1,0 +1,26 @@
+What is a TLB? A TLB (Translation Lookaside Buffer) is a part of the Memory Management Unit (MMU). It stores the virtual memory to physical memory translations [1]. A TLB shootdown removes all possible stale copies of any modified PTE (Page Table Entries) from all the TLBs that could be caching it. This ensures that all future accesses leverage the most up-to-date mapping. Depending on the system architecture the median time taken by a TLB shootdown is 13.2 micro-seconds [2]! Now that is very expensive from a time-utilization perspective in the OS-scale of things, and requires the involvement of the Operating system and the hardware. As a result, the paper proposes Self-Invalidating TLB entries (SITE) so as to eliminate TLB shootdowns. Garbage Collectors, detection of memory management bugs etc. can benefit from change.
+
+Current Mechanism: Contemporary commercial processors like x86-64 etc. doesn’t support automatic invalidation of old TLB entries on modification of PTE, the responsibility is on the OS. The OS initiates an IPI (Inter Process Interrupt) across all cores, which is executed by every core by leveraging their respective interrupt handler that invalidates any cached copies of the PTE in the their respective TLBs, and then sends back an acknowledgement to the initiating core.
+
+The paper proposes the below changes and evaluates the changes implemented:
+
+It introduces the idea of SITE (Self-Invalidating TLB entries)
+The paper details the hardware and OS modifications needed
+It evaluates SITE in reducing the number of TLB shootdowns for a heterogeneous memory system.
+How to implement SITE? The paper proposes the use of main memory access to count the logical expiration/lease time. Mainly due to the fact that in large systems or multi-CPU systems synchronizing the time introduces additional time-keeping overhead, given the fact that time ticks are evidently more frequent than the main memory access. The length of the TLB lease time is very crucial as shorter lease time will increase the number of TLB misses and long TLB lease time will lead to stale TLB entries. To eliminate this, we have the ‘dynamic lease length assignment’. The dynamic lease-times are stored in an auxiliary in memory data structure called the ‘Expiration time table’ (ETT), and maps the lease-time to each page. This is because cache latency is higher than TLB lookup times.
+
+Proposed Hardware Modifications to support the implementation of SITE:
+
+TLB Lookup
+Hardware page table walker
+Auxiliary in-memory Expiration Time Table (ETT)
+Per-Core Logical time
+Proposed OS modifications:
+
+PTE invalidating routine
+Allocation of ETTs to page fault handler
+References:
+
+Amro Awad∗, Arkaprava Basu, Sergey Blagodurov†, Yan Solihin‡ and Gabriel H. Loh. Avoiding TLB Shootdowns through Self-invalidating TLB Entries -- Original Paper
+https://en.wikipedia.org/wiki/Translation_lookaside_buffer-- the definition of the TLB.
+Mark Oskin and Gabriel H. Loh. A software-managed approach to die-stacked dram. In PACT,pages 188–200. IEEE, 2015 -- previous work done by the same authors.
